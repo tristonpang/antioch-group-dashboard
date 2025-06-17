@@ -90,3 +90,4 @@ for seconds in range(200):
         st.markdown("### Detailed Data View")
         st.dataframe(df)
         time.sleep(1)
+        st.rerun()
