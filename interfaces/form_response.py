@@ -10,6 +10,40 @@ FieldIds = Enum(
     ],
 )
 
+CSV_HEADERS = [
+    "respondent",
+    "email",
+    "role",
+    "church",
+    "discipleship",
+    "education",
+    "training",
+    "sending",
+    "sending1",
+    "membercare",
+    "support",
+    "praying",
+    "giving",
+    "community",
+    "structure",
+    "organisation",
+    "policies",
+    "partnerships",
+    "score",
+    "finalpercentage",
+]
+
+DOMAIN_HEADERS = [
+    "discipleship",
+    "sending",
+    "support",
+    "structure",
+]
+
+
+def convertFromUpon25To100(scoreUpon25):
+    return (scoreUpon25 / 25) * 100
+
 
 class FormResponseAnswersFields:
     def __init__(self, **kwargs):
@@ -22,23 +56,23 @@ class FormResponseAnswersFields:
 class FormResponseScores:
     def __init__(self, **kwargs):
         # Domain 1: Discipleship
-        self.discipleship = kwargs.get("discipleship")
+        self.discipleship = convertFromUpon25To100(kwargs.get("discipleship"))
         self.education = kwargs.get("education")
         self.training = kwargs.get("training")
 
         # Domain 2: Sending
-        self.sending = kwargs.get("sending")
+        self.sending = convertFromUpon25To100(kwargs.get("sending"))
         self.sending1 = kwargs.get("sending1")
         self.membercare = kwargs.get("membercare")
 
         # Domain 3: Support
-        self.support = kwargs.get("support")
+        self.support = convertFromUpon25To100(kwargs.get("support"))
         self.praying = kwargs.get("praying")
         self.giving = kwargs.get("giving")
         self.community = kwargs.get("community")
 
         # Domain 4: Structure
-        self.structure = kwargs.get("structure")
+        self.structure = convertFromUpon25To100(kwargs.get("structure"))
         self.organisation = kwargs.get("organisation")
         self.policies = kwargs.get("policies")
         self.partnerships = kwargs.get("partnerships")
@@ -75,8 +109,7 @@ class FormResponse:
         return args_for_scores
 
     def __init__(self, raw_response):
-        # self.response_id = raw_response["response_id"]
-        # self.response_type = raw_response["response_type"]
+        self.submitted_at = raw_response["submitted_at"]
 
         # Form response answers
         args_for_answers = dict()
@@ -96,6 +129,7 @@ class FormResponse:
 
     def parse_to_row(self):
         return {
+            "submitted_at": self.submitted_at,
             "respondent": self.answers.respondent,
             "email": self.answers.email,
             "role": self.answers.role,
