@@ -7,6 +7,11 @@ from interfaces.form_response import FormResponse
 app = Flask(__name__)
 
 
+@app.route("/", methods=["GET"])
+def index():
+    return {"message": "Welcome to the CMRA Group Dashboard API"}
+
+
 @app.route("/webhook", methods=["POST"])
 def webhook():
     data = request.json
