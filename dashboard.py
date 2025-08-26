@@ -270,16 +270,6 @@ for domain, subdomains in subdomain_mapping.items():
 subdomain_scores_df = pd.DataFrame(all_subdomain_scores)
 lowest_subdomains = subdomain_scores_df.nsmallest(4, "avg_score")["subdomain"].tolist()
 
-# # Display insights
-# insight_col1, insight_col2 = st.columns(2)
-
-# with insight_col1:
-#     st.success(f"**This cohort's strongest domain is:** {strongest_domain}")
-
-# with insight_col2:
-#     lowest_subdomains_text = ", ".join(lowest_subdomains)
-#     st.warning(f"**Areas for greatest improvement:** {lowest_subdomains_text}")
-
 # Display strongest domain in green box
 st.markdown("**This cohort's strongest domain is:**")
 st.success(f"**{strongest_domain}**")
