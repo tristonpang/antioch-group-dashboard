@@ -1,15 +1,16 @@
 from datetime import datetime
 
 import pandas as pd
+import plotly.graph_objects as go
 import streamlit as st
 
-from constants import CSV_FILE
+from constants import ALL_ROLES_OPTION, CSV_FILE, EMPTY_ROLE_OPTION
 from interfaces.form_response import DISPLAY_NAMES, DOMAIN_HEADERS
 
 # dataset_url = "https://raw.githubusercontent.com/Lexie88rus/bank-marketing-analysis/master/bank.csv"
 
 st.set_page_config(
-    page_title="Real-Time Data Science Dashboard",
+    page_title="CMRA Group Dashboard",
     page_icon="✅",
     layout="wide",
 )
@@ -29,8 +30,11 @@ df = get_data()
 # dashboard title
 st.title("CMRA Group Dashboard")
 
-# top-level filters
-role_filter = st.selectbox("Role", pd.unique(df["role"]))
+# == FILTERS SECTION ==
+role_options = [ALL_ROLES_OPTION, EMPTY_ROLE_OPTION] + list(
+    pd.unique(df["role"].dropna())
+)
+role_filter = st.selectbox("Role", role_options)
 
 start_date_col, end_date_col = st.columns(2)
 with start_date_col:
@@ -51,10 +55,11 @@ end_datetime = datetime.combine(end_date_range, end_time_range)
 # creating a single-element container
 placeholder = st.empty()
 
-# dataframe filter
-# df = df[df["role"] == role_filter]
-
-# print(df)
+# Apply dataframe filters
+if role_filter == EMPTY_ROLE_OPTION:
+    df = df[df["role"].isna() | (df["role"] == "")]
+elif role_filter != ALL_ROLES_OPTION:
+    df = df[df["role"] == role_filter]
 
 # == DOMAIN SUMMARY SECTION (Table) ==
 df_domain_scores = df.melt(
@@ -115,6 +120,177 @@ domain_summary = pd.DataFrame(
 
 st.markdown("### Domain Summary")
 st.dataframe(domain_summary, use_container_width=True, hide_index=True)
+
+
+st.markdown("### Visualization Panel")
+# == RADAR CHART SECTION ==
+# Create radar chart data
+radar_data = domain_summary_stats.reset_index()
+radar_data["domain_display"] = [
+    DISPLAY_NAMES[domain] for domain in radar_data["domain"]
+]
+
+domain_radar = go.Figure()
+
+domain_radar.add_trace(
+    go.Scatterpolar(
+        r=radar_data["avg_score"],
+        theta=radar_data["domain_display"],
+        fill="toself",
+        name="Average Score",
+        line_color="rgb(32, 201, 151)",
+        fillcolor="rgba(32, 201, 151, 0.2)",
+    )
+)
+
+domain_radar.update_layout(
+    polar=dict(
+        radialaxis=dict(
+            visible=True,
+            range=[0, 100],  # Assuming scores are 0-100
+        )
+    ),
+    showlegend=True,
+    title="Domain Average Scores",
+    height=500,
+)
+
+
+# == SUBDOMAIN BAR CHART SECTION ==
+# Create subdomain data with domain prefixes for clearer grouping
+subdomain_data = []
+
+for domain, subdomains in subdomain_mapping.items():
+    for subdomain in subdomains:
+        avg_score = df[subdomain].mean()
+        subdomain_data.append(
+            {
+                "domain": DISPLAY_NAMES[domain],
+                "subdomain": DISPLAY_NAMES[subdomain],
+                "subdomain_full": f"{DISPLAY_NAMES[domain]}: {DISPLAY_NAMES[subdomain]}",
+                "avg_score": round(avg_score, 2),
+            }
+        )
+
+subdomain_df = pd.DataFrame(subdomain_data)
+
+# Create single bar chart with color coding by domain
+subdomain_bar = go.Figure()
+
+domains = subdomain_df["domain"].unique()
+colors = [
+    "rgb(32, 201, 151)",
+    "rgb(255, 99, 71)",
+    "rgb(54, 162, 235)",
+    "rgb(255, 206, 86)",
+]
+color_map = {domain: colors[i % len(colors)] for i, domain in enumerate(domains)}
+
+subdomain_bar.add_trace(
+    go.Bar(
+        x=subdomain_df["subdomain_full"],
+        y=subdomain_df["avg_score"],
+        marker_color=[color_map[domain] for domain in subdomain_df["domain"]],
+        text=subdomain_df["avg_score"],
+        textposition="auto",
+        showlegend=False,
+    )
+)
+
+subdomain_bar.update_layout(
+    title="Average Scores by Subdomain",
+    xaxis_title="Subdomains",
+    yaxis_title="Average Score",
+    height=500,
+    xaxis={"tickangle": 45},
+)
+
+domain_radar_col, subdomain_bar_col = st.columns(2)
+with domain_radar_col:
+    st.plotly_chart(domain_radar, use_container_width=True)
+with subdomain_bar_col:
+    st.plotly_chart(subdomain_bar, use_container_width=True)
+
+# == SUBDOMAIN HEATMAP SECTION ==
+# Prepare data for heatmap
+heatmap_data = []
+domain_labels = []
+subdomain_labels = []
+
+for domain, subdomains in subdomain_mapping.items():
+    for subdomain in subdomains:
+        avg_score = df[subdomain].mean()
+        heatmap_data.append([round(avg_score, 2)])
+        domain_labels.append(DISPLAY_NAMES[domain])
+        subdomain_labels.append(DISPLAY_NAMES[subdomain])
+
+# Create heatmap
+heatmap_fig = go.Figure(
+    data=go.Heatmap(
+        z=heatmap_data,
+        x=["Average Score"],
+        y=[
+            f"{domain}: {subdomain}"
+            for domain, subdomain in zip(domain_labels, subdomain_labels)
+        ],
+        colorscale="RdYlGn",
+        text=heatmap_data,
+        texttemplate="%{text}",
+        textfont={"size": 12},
+        colorbar=dict(title="Score"),
+        hoverongaps=False,
+    )
+)
+
+heatmap_fig.update_layout(
+    title="Subdomain Average Scores Heatmap",
+    height=600,
+    yaxis={"autorange": "reversed"},  # To show domains in order
+    xaxis={"side": "top"},
+)
+
+st.plotly_chart(heatmap_fig, use_container_width=True)
+
+# == INSIGHTS SECTION ==
+st.markdown("### Summary Insights")
+# Find strongest domain
+strongest_domain_idx = domain_summary_stats["avg_score"].idxmax()
+strongest_domain = DISPLAY_NAMES[strongest_domain_idx]
+
+# Find lowest 4 subdomains across all domains
+all_subdomain_scores = []
+for domain, subdomains in subdomain_mapping.items():
+    for subdomain in subdomains:
+        avg_score = df[subdomain].mean()
+        all_subdomain_scores.append(
+            {"subdomain": DISPLAY_NAMES[subdomain], "avg_score": round(avg_score, 2)}
+        )
+
+# Sort by score and get the lowest 4
+subdomain_scores_df = pd.DataFrame(all_subdomain_scores)
+lowest_subdomains = subdomain_scores_df.nsmallest(4, "avg_score")["subdomain"].tolist()
+
+# # Display insights
+# insight_col1, insight_col2 = st.columns(2)
+
+# with insight_col1:
+#     st.success(f"**This cohort's strongest domain is:** {strongest_domain}")
+
+# with insight_col2:
+#     lowest_subdomains_text = ", ".join(lowest_subdomains)
+#     st.warning(f"**Areas for greatest improvement:** {lowest_subdomains_text}")
+
+# Display strongest domain in green box
+st.markdown("**This cohort's strongest domain is:**")
+st.success(f"**{strongest_domain}**")
+
+# Display lowest subdomains in yellow boxes
+st.markdown("**Areas for greatest improvement:**")
+improvement_cols = st.columns(4)
+
+for i, subdomain in enumerate(lowest_subdomains):
+    with improvement_cols[i]:
+        st.warning(f"**{subdomain}**")
 
 
 # near real-time / live feed simulation
