@@ -4,7 +4,7 @@ import pandas as pd
 import streamlit as st
 
 from constants import CSV_FILE
-from interfaces.form_response import DOMAIN_HEADERS
+from interfaces.form_response import DISPLAY_NAMES, DOMAIN_HEADERS
 
 # dataset_url = "https://raw.githubusercontent.com/Lexie88rus/bank-marketing-analysis/master/bank.csv"
 
@@ -77,38 +77,44 @@ domain_summary_stats = (
 # Flatten column names
 domain_summary_stats.columns = ["avg_score", "median_score"]
 
-# # Find top and lowest sub-domains for each domain
-# # If you don't have subdomains, you might want to use a different identifier
-# # For now, I'll assume you have a 'subdomain' column or use 'role' instead
-# if "subdomain" in df_domain_scores.columns:
-#     top_subdomains = df_domain_scores.loc[df_domain_scores.groupby("domain")["domain_score"].idxmax()][
-#         "subdomain"
-#     ]
-#     lowest_subdomains = df_domain_scores.loc[df_domain_scores.groupby("domain")["domain_score"].idxmin()][
-#         "subdomain"
-#     ]
-# else:
-#     # Use role or another identifier if subdomain doesn't exist
-#     top_subdomains = df_melted.loc[df_melted.groupby("domain")["score"].idxmax()][
-#         "role"
-#     ]
-#     lowest_subdomains = df_melted.loc[df_melted.groupby("domain")["score"].idxmin()][
-#         "role"
-#     ]
+# Define subdomain mappings for each domain
+subdomain_mapping = {
+    "discipleship": ["education", "training"],
+    "sending": ["sending1", "membercare"],
+    "support": ["praying", "giving", "community"],
+    "structure": ["organisation", "policies", "partnerships"],
+}
+
+# Calculate top and lowest subdomains for each domain
+top_subdomains = []
+lowest_subdomains = []
+
+for domain in domain_summary_stats.index:
+    subdomains = subdomain_mapping[domain]
+
+    # Calculate mean scores for each subdomain in this domain
+    subdomain_means = df[subdomains].mean()
+
+    # Find top and lowest subdomain
+    top_subdomain = subdomain_means.idxmax()
+    lowest_subdomain = subdomain_means.idxmin()
+
+    top_subdomains.append(DISPLAY_NAMES[top_subdomain])
+    lowest_subdomains.append(DISPLAY_NAMES[lowest_subdomain])
 
 # Create the final dataframe
 domain_summary = pd.DataFrame(
     {
-        "domain": domain_summary_stats.index,
-        "average_score": domain_summary_stats["avg_score"],
-        "median_score": domain_summary_stats["median_score"],
-        # "top_subdomain": top_subdomains.values,
-        # "lowest_subdomain": lowest_subdomains.values,
+        "Domain": [DISPLAY_NAMES[domain] for domain in domain_summary_stats.index],
+        "Average Score": domain_summary_stats["avg_score"],
+        "Median Score": domain_summary_stats["median_score"],
+        "Top Subdomain": top_subdomains,
+        "Lowest Subdomain": lowest_subdomains,
     }
 ).reset_index(drop=True)
 
 st.markdown("### Domain Summary")
-st.dataframe(domain_summary)
+st.dataframe(domain_summary, use_container_width=True, hide_index=True)
 
 
 # near real-time / live feed simulation

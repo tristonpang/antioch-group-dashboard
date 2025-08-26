@@ -40,6 +40,23 @@ DOMAIN_HEADERS = [
     "structure",
 ]
 
+DISPLAY_NAMES = {
+    "discipleship": "Discipleship",
+    "sending": "Sending",
+    "support": "Support",
+    "structure": "Structure",
+    "education": "Education",
+    "training": "Training",
+    "sending1": "Sending",
+    "membercare": "Member Care",
+    "praying": "Praying",
+    "giving": "Giving",
+    "community": "Community",
+    "organisation": "Organisation",
+    "policies": "Policies",
+    "partnerships": "Partnerships",
+}
+
 
 def convertFromUpon25To100(scoreUpon25):
     return (scoreUpon25 / 25) * 100
