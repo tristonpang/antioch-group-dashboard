@@ -52,6 +52,10 @@ with end_time_col:
 start_datetime = datetime.combine(start_date_range, start_time_range)
 end_datetime = datetime.combine(end_date_range, end_time_range)
 
+df["submitted_at"] = pd.to_datetime(df["submitted_at"])
+# Convert timezone-aware datetime to timezone-naive for comparison
+df["submitted_at"] = df["submitted_at"].dt.tz_localize(None)
+
 # creating a single-element container
 placeholder = st.empty()
 
@@ -60,6 +64,10 @@ if role_filter == EMPTY_ROLE_OPTION:
     df = df[df["role"].isna() | (df["role"] == "")]
 elif role_filter != ALL_ROLES_OPTION:
     df = df[df["role"] == role_filter]
+
+# Apply datetime range
+df = df[(df["submitted_at"] >= start_datetime) & (df["submitted_at"] <= end_datetime)]
+
 
 # == DOMAIN SUMMARY SECTION (Table) ==
 df_domain_scores = df.melt(
@@ -253,34 +261,42 @@ st.plotly_chart(heatmap_fig, use_container_width=True)
 
 # == INSIGHTS SECTION ==
 st.markdown("### Summary Insights")
-# Find strongest domain
-strongest_domain_idx = domain_summary_stats["avg_score"].idxmax()
-strongest_domain = DISPLAY_NAMES[strongest_domain_idx]
+if df.empty:
+    st.warning("No data available for the selected filters and date range.")
+else:
+    # Find strongest domain
+    strongest_domain_idx = domain_summary_stats["avg_score"].idxmax()
+    strongest_domain = DISPLAY_NAMES[strongest_domain_idx]
 
-# Find lowest 4 subdomains across all domains
-all_subdomain_scores = []
-for domain, subdomains in subdomain_mapping.items():
-    for subdomain in subdomains:
-        avg_score = df[subdomain].mean()
-        all_subdomain_scores.append(
-            {"subdomain": DISPLAY_NAMES[subdomain], "avg_score": round(avg_score, 2)}
-        )
+    # Find lowest 4 subdomains across all domains
+    all_subdomain_scores = []
+    for domain, subdomains in subdomain_mapping.items():
+        for subdomain in subdomains:
+            avg_score = df[subdomain].mean()
+            all_subdomain_scores.append(
+                {
+                    "subdomain": DISPLAY_NAMES[subdomain],
+                    "avg_score": round(avg_score, 2),
+                }
+            )
 
-# Sort by score and get the lowest 4
-subdomain_scores_df = pd.DataFrame(all_subdomain_scores)
-lowest_subdomains = subdomain_scores_df.nsmallest(4, "avg_score")["subdomain"].tolist()
+    # Sort by score and get the lowest 4
+    subdomain_scores_df = pd.DataFrame(all_subdomain_scores)
+    lowest_subdomains = subdomain_scores_df.nsmallest(4, "avg_score")[
+        "subdomain"
+    ].tolist()
 
-# Display strongest domain in green box
-st.markdown("**This cohort's strongest domain is:**")
-st.success(f"**{strongest_domain}**")
+    # Display strongest domain in green box
+    st.markdown("**This cohort's strongest domain is:**")
+    st.success(f"**{strongest_domain}**")
 
-# Display lowest subdomains in yellow boxes
-st.markdown("**Areas for greatest improvement:**")
-improvement_cols = st.columns(4)
+    # Display lowest subdomains in yellow boxes
+    st.markdown("**Areas for greatest improvement:**")
+    improvement_cols = st.columns(4)
 
-for i, subdomain in enumerate(lowest_subdomains):
-    with improvement_cols[i]:
-        st.warning(f"**{subdomain}**")
+    for i, subdomain in enumerate(lowest_subdomains):
+        with improvement_cols[i]:
+            st.warning(f"**{subdomain}**")
 
 
 # near real-time / live feed simulation
