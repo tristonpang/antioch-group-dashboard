@@ -26,27 +26,38 @@ def get_data() -> pd.DataFrame:
 # All collated data
 df = get_data()
 
-
 # dashboard title
 st.title("CMRA Group Dashboard")
 
+# == IMPORT SECTION ==
+st.markdown("### Import Cohort Data (CSV)")
+uploaded_file = st.file_uploader(
+    "Upload a CSV file to use as the current cohort (optional):",
+    type=["csv"],
+    key="import_csv",
+)
+if uploaded_file is not None:
+    df = pd.read_csv(uploaded_file)
+    st.success("CSV file successfully imported and loaded as current cohort!")
+
 # == FILTERS SECTION ==
+filters_disabled = uploaded_file is not None
 role_options = [ALL_ROLES_OPTION, EMPTY_ROLE_OPTION] + list(
     pd.unique(df["role"].dropna())
 )
-role_filter = st.selectbox("Role", role_options)
+role_filter = st.selectbox("Role", role_options, disabled=filters_disabled)
 
 start_date_col, end_date_col = st.columns(2)
 with start_date_col:
-    start_date_range = st.date_input("Start Date")
+    start_date_range = st.date_input("Start Date", disabled=filters_disabled)
 with end_date_col:
-    end_date_range = st.date_input("End Date")
+    end_date_range = st.date_input("End Date", disabled=filters_disabled)
 
 start_time_col, end_time_col = st.columns(2)
 with start_time_col:
-    start_time_range = st.time_input("Start Time")
+    start_time_range = st.time_input("Start Time", disabled=filters_disabled)
 with end_time_col:
-    end_time_range = st.time_input("End Time")
+    end_time_range = st.time_input("End Time", disabled=filters_disabled)
 
 # Combine date and time into datetime objects
 start_datetime = datetime.combine(start_date_range, start_time_range)
@@ -384,6 +395,16 @@ else:
     )
 
     st.plotly_chart(compare_bar, use_container_width=True)
+
+# == EXPORT SECTION ==
+st.markdown("### Export Current Cohort Data")
+csv_export = df.to_csv(index=False).encode("utf-8")
+st.download_button(
+    label="Download Current Cohort as CSV",
+    data=csv_export,
+    file_name="current_cohort.csv",
+    mime="text/csv",
+)
 
 
 # near real-time / live feed simulation
