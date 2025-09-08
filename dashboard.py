@@ -41,23 +41,37 @@ if uploaded_file is not None:
     st.success("CSV file successfully imported and loaded as current cohort!")
 
 # == FILTERS SECTION ==
-filters_disabled = uploaded_file is not None
+all_filters_disabled = uploaded_file is not None
 role_options = [ALL_ROLES_OPTION, EMPTY_ROLE_OPTION] + list(
     pd.unique(df["role"].dropna())
 )
-role_filter = st.selectbox("Role", role_options, disabled=filters_disabled)
+role_filter = st.selectbox("Role", role_options, disabled=all_filters_disabled)
 
+live_data_col, combine_live_with_historical_col = st.columns(2)
+with live_data_col:
+    enable_live_data = st.toggle(
+        "Enable Live Data", value=False, disabled=all_filters_disabled
+    )
+with combine_live_with_historical_col:
+    combine_live = st.toggle(
+        "Combine with historical data",
+        value=False,
+        disabled=all_filters_disabled or not enable_live_data,
+    )
+
+end_range_disabled = all_filters_disabled or enable_live_data
+start_range_disabled = all_filters_disabled or (enable_live_data and not combine_live)
 start_date_col, end_date_col = st.columns(2)
 with start_date_col:
-    start_date_range = st.date_input("Start Date", disabled=filters_disabled)
+    start_date_range = st.date_input("Start Date", disabled=start_range_disabled)
 with end_date_col:
-    end_date_range = st.date_input("End Date", disabled=filters_disabled)
+    end_date_range = st.date_input("End Date", disabled=end_range_disabled)
 
 start_time_col, end_time_col = st.columns(2)
 with start_time_col:
-    start_time_range = st.time_input("Start Time", disabled=filters_disabled)
+    start_time_range = st.time_input("Start Time", disabled=start_range_disabled)
 with end_time_col:
-    end_time_range = st.time_input("End Time", disabled=filters_disabled)
+    end_time_range = st.time_input("End Time", disabled=end_range_disabled)
 
 # Combine date and time into datetime objects
 start_datetime = datetime.combine(start_date_range, start_time_range)
