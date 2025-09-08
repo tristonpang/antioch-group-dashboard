@@ -167,11 +167,16 @@ domain_radar.update_layout(
         radialaxis=dict(
             visible=True,
             range=[0, 100],  # Assuming scores are 0-100
-        )
+        ),
+        angularaxis=dict(
+            tickfont=dict(size=24),  # <-- Angular axis tick font size
+        ),
     ),
     showlegend=True,
     title="Domain Average Scores",
     height=500,
+    font=dict(size=18),
+    hoverlabel=dict(font_size=18),
 )
 
 
@@ -221,7 +226,13 @@ subdomain_bar.update_layout(
     xaxis_title="Subdomains",
     yaxis_title="Average Score",
     height=500,
-    xaxis={"tickangle": 45},
+    xaxis={"tickangle": 45, "title_font": {"size": 20}, "tickfont": {"size": 14}},
+    yaxis={
+        "title_font": {"size": 20},
+        "tickfont": {"size": 18},
+    },
+    font=dict(size=18),
+    hoverlabel=dict(font_size=18),
 )
 
 domain_radar_col, subdomain_bar_col = st.columns(2)
@@ -252,10 +263,11 @@ heatmap_fig = go.Figure(
             f"{domain}: {subdomain}"
             for domain, subdomain in zip(domain_labels, subdomain_labels)
         ],
-        colorscale="RdYlGn",
+        # colorscale="RdYlGn",
+        autocolorscale=True,
         text=heatmap_data,
         texttemplate="%{text}",
-        textfont={"size": 12},
+        textfont={"size": 18},
         colorbar=dict(title="Score"),
         hoverongaps=False,
     )
@@ -264,8 +276,13 @@ heatmap_fig = go.Figure(
 heatmap_fig.update_layout(
     title="Subdomain Average Scores Heatmap",
     height=600,
-    yaxis={"autorange": "reversed"},  # To show domains in order
+    yaxis={
+        "autorange": "reversed",
+        "tickfont": {"size": 18},
+    },
     xaxis={"side": "top"},
+    font=dict(size=18),
+    hoverlabel=dict(font_size=18),
 )
 
 st.plotly_chart(heatmap_fig, use_container_width=True)
@@ -391,7 +408,9 @@ else:
         xaxis_title="Subdomain",
         yaxis_title="Average Score",
         height=500,
-        xaxis={"tickangle": 45},
+        xaxis={"tickangle": 45, "tickfont": {"size": 18}, "title_font": {"size": 20}},
+        yaxis={"tickfont": {"size": 18}, "title_font": {"size": 20}},
+        hoverlabel=dict(font_size=18),
     )
 
     st.plotly_chart(compare_bar, use_container_width=True)
