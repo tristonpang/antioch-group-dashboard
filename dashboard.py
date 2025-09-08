@@ -298,6 +298,93 @@ else:
         with improvement_cols[i]:
             st.warning(f"**{subdomain}**")
 
+    # == COMPARISON COHORT SECTION ==
+    st.markdown("#### Comparison Cohort Selection")
+
+    # Comparison cohort date/time selectors
+    comp_start_date_col, comp_end_date_col = st.columns(2)
+    with comp_start_date_col:
+        comp_start_date = st.date_input(
+            "Previous Cohort Start Date", key="comp_start_date"
+        )
+    with comp_end_date_col:
+        comp_end_date = st.date_input("Previous Cohort End Date", key="comp_end_date")
+
+    comp_start_time_col, comp_end_time_col = st.columns(2)
+    with comp_start_time_col:
+        comp_start_time = st.time_input(
+            "Previous Cohort Start Time", key="comp_start_time"
+        )
+    with comp_end_time_col:
+        comp_end_time = st.time_input("Previous Cohort End Time", key="comp_end_time")
+
+    # Combine comparison date and time into datetime objects
+    comp_start_datetime = datetime.combine(comp_start_date, comp_start_time)
+    comp_end_datetime = datetime.combine(comp_end_date, comp_end_time)
+
+    # Filter for comparison cohort (using the same role filter as current cohort)
+    df_comp = get_data()
+    df_comp["submitted_at"] = pd.to_datetime(df_comp["submitted_at"])
+    df_comp["submitted_at"] = df_comp["submitted_at"].dt.tz_localize(None)
+
+    if role_filter == EMPTY_ROLE_OPTION:
+        df_comp = df_comp[df_comp["role"].isna() | (df_comp["role"] == "")]
+    elif role_filter != ALL_ROLES_OPTION:
+        df_comp = df_comp[df_comp["role"] == role_filter]
+
+    df_comp = df_comp[
+        (df_comp["submitted_at"] >= comp_start_datetime)
+        & (df_comp["submitted_at"] <= comp_end_datetime)
+    ]
+
+    # Calculate average scores for each subdomain in both cohorts
+    subdomain_compare_data = []
+    for domain, subdomains in subdomain_mapping.items():
+        for subdomain in subdomains:
+            current_avg = df[subdomain].mean() if not df.empty else 0
+            comp_avg = df_comp[subdomain].mean() if not df_comp.empty else 0
+            subdomain_compare_data.append(
+                {
+                    "domain": DISPLAY_NAMES[domain],
+                    "subdomain": DISPLAY_NAMES[subdomain],
+                    "Current Cohort": round(current_avg, 2),
+                    "Previous Cohort": round(comp_avg, 2),
+                }
+            )
+
+    subdomain_compare_df = pd.DataFrame(subdomain_compare_data)
+
+    # Bar chart comparing subdomains
+    compare_bar = go.Figure()
+
+    compare_bar.add_trace(
+        go.Bar(
+            x=subdomain_compare_df["subdomain"],
+            y=subdomain_compare_df["Previous Cohort"],
+            name="Previous",
+            marker_color="rgb(255, 99, 71)",
+        )
+    )
+    compare_bar.add_trace(
+        go.Bar(
+            x=subdomain_compare_df["subdomain"],
+            y=subdomain_compare_df["Current Cohort"],
+            name="Current",
+            marker_color="rgb(32, 201, 151)",
+        )
+    )
+
+    compare_bar.update_layout(
+        barmode="group",
+        title="Subdomain Average Scores: Current vs. Previous Cohort",
+        xaxis_title="Subdomain",
+        yaxis_title="Average Score",
+        height=500,
+        xaxis={"tickangle": 45},
+    )
+
+    st.plotly_chart(compare_bar, use_container_width=True)
+
 
 # near real-time / live feed simulation
 # for seconds in range(200):
