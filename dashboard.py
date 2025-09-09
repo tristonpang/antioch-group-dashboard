@@ -88,8 +88,8 @@ last_start, last_end = st.session_state["last_fetched_range"]
 if (start_datetime != last_start) or (end_datetime != last_end):
     with st.spinner("Fetching data from Typeform..."):
         fetch_typeform_responses(start_datetime, end_datetime)
+        df = get_data()
     st.session_state["last_fetched_range"] = (start_datetime, end_datetime)
-    st.info("Fetched data from Typeform for the selected date/time range.")
 
 
 df["submitted_at"] = pd.to_datetime(df["submitted_at"])
@@ -107,6 +107,7 @@ elif role_filter != ALL_ROLES_OPTION:
 
 # Apply datetime range
 df = df[(df["submitted_at"] >= start_datetime) & (df["submitted_at"] <= end_datetime)]
+st.info(str(df.shape[0]) + " responses from Typeform for the selected date/time range.")
 
 
 # == DOMAIN SUMMARY SECTION (Table) ==
