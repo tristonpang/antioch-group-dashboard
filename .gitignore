@@ -1,2 +1,3 @@
 grp-dsh-env/*
 __pycache__
+.env

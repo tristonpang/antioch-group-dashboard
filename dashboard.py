@@ -6,6 +6,7 @@ import streamlit as st
 
 from constants import ALL_ROLES_OPTION, CSV_FILE, EMPTY_ROLE_OPTION
 from interfaces.form_response import DISPLAY_NAMES, DOMAIN_HEADERS
+from typeform_api import fetch_typeform_responses
 
 # dataset_url = "https://raw.githubusercontent.com/Lexie88rus/bank-marketing-analysis/master/bank.csv"
 
@@ -47,20 +48,22 @@ role_options = [ALL_ROLES_OPTION, EMPTY_ROLE_OPTION] + list(
 )
 role_filter = st.selectbox("Role", role_options, disabled=all_filters_disabled)
 
-live_data_col, combine_live_with_historical_col = st.columns(2)
-with live_data_col:
-    enable_live_data = st.toggle(
-        "Enable Live Data", value=False, disabled=all_filters_disabled
+realtime_data_col, combine_live_with_historical_col = st.columns(2)
+with realtime_data_col:
+    enable_realtime_data = st.toggle(
+        "Enable Real-time Data", value=False, disabled=all_filters_disabled
     )
 with combine_live_with_historical_col:
     combine_live = st.toggle(
         "Combine with historical data",
         value=False,
-        disabled=all_filters_disabled or not enable_live_data,
+        disabled=all_filters_disabled or not enable_realtime_data,
     )
 
-end_range_disabled = all_filters_disabled or enable_live_data
-start_range_disabled = all_filters_disabled or (enable_live_data and not combine_live)
+end_range_disabled = all_filters_disabled or enable_realtime_data
+start_range_disabled = all_filters_disabled or (
+    enable_realtime_data and not combine_live
+)
 start_date_col, end_date_col = st.columns(2)
 with start_date_col:
     start_date_range = st.date_input("Start Date", disabled=start_range_disabled)
@@ -76,6 +79,18 @@ with end_time_col:
 # Combine date and time into datetime objects
 start_datetime = datetime.combine(start_date_range, start_time_range)
 end_datetime = datetime.combine(end_date_range, end_time_range)
+
+if "last_fetched_range" not in st.session_state:
+    st.session_state["last_fetched_range"] = (None, None)
+
+last_start, last_end = st.session_state["last_fetched_range"]
+
+if (start_datetime != last_start) or (end_datetime != last_end):
+    with st.spinner("Fetching data from Typeform..."):
+        fetch_typeform_responses(start_datetime, end_datetime)
+    st.session_state["last_fetched_range"] = (start_datetime, end_datetime)
+    st.info("Fetched data from Typeform for the selected date/time range.")
+
 
 df["submitted_at"] = pd.to_datetime(df["submitted_at"])
 # Convert timezone-aware datetime to timezone-naive for comparison
