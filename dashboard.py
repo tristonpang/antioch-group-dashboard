@@ -1,14 +1,17 @@
+import os
 from datetime import datetime
 
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
+from streamlit_autorefresh import st_autorefresh
 
 from constants import ALL_ROLES_OPTION, CSV_FILE, EMPTY_ROLE_OPTION
 from interfaces.form_response import CSV_HEADERS, DISPLAY_NAMES, DOMAIN_HEADERS
-from typeform_api import COMPARISON_CSV_FILE, fetch_typeform_responses
+from typeform_api import COMPARISON_CSV_FILE, clear_csv, fetch_typeform_responses
 
 # dataset_url = "https://raw.githubusercontent.com/Lexie88rus/bank-marketing-analysis/master/bank.csv"
+REALTIME_FLAG_FILE = "realtime_enabled.flag"
 
 st.set_page_config(
     page_title="CMRA Group Dashboard",
@@ -22,7 +25,6 @@ st.set_page_config(
 def get_data() -> pd.DataFrame:
     try:
         result = pd.read_csv(CSV_FILE)
-        print("returning result")
         return result
     except pd.errors.EmptyDataError:
         return pd.DataFrame(columns=CSV_HEADERS)
@@ -36,8 +38,34 @@ def get_data_comparison() -> pd.DataFrame:
         return pd.DataFrame(columns=CSV_HEADERS)
 
 
-# All collated data
-df = get_data()
+def refresh_data():
+    st.cache_data.clear()
+    return get_data()
+
+
+def refresh_data_comparison():
+    st.cache_data.clear()
+    return get_data_comparison()
+
+
+# SESSION STATE
+if "last_fetched_range" not in st.session_state:
+    st.session_state["last_fetched_range"] = (None, None)
+if "last_fetched_range_comp" not in st.session_state:
+    st.session_state["last_fetched_range_comp"] = (None, None)
+if "last_realtime_state" not in st.session_state:
+    st.session_state["last_realtime_state"] = False
+refresh_count = (
+    st_autorefresh(interval=2000, key="datarefresh")
+    if st.session_state["last_realtime_state"]
+    else None
+)
+print("Auto-refresh count:", refresh_count)
+
+# Initial data load
+df = refresh_data()
+df_comp = refresh_data_comparison()
+
 
 # dashboard title
 st.title("CMRA Group Dashboard")
@@ -65,6 +93,22 @@ with realtime_data_col:
     enable_realtime_data = st.toggle(
         "Enable Real-time Data", value=False, disabled=all_filters_disabled
     )
+
+if enable_realtime_data != st.session_state["last_realtime_state"]:
+    st.session_state["last_realtime_state"] = enable_realtime_data
+    clear_csv()
+    df = refresh_data()
+    df_comp = refresh_data_comparison()
+
+    if enable_realtime_data:
+        with open(REALTIME_FLAG_FILE, "w") as f:
+            f.write("1")
+        st.rerun()
+    else:
+        if os.path.exists(REALTIME_FLAG_FILE):
+            os.remove(REALTIME_FLAG_FILE)
+
+
 with combine_live_with_historical_col:
     combine_live = st.toggle(
         "Combine with historical data",
@@ -92,16 +136,14 @@ with end_time_col:
 start_datetime = datetime.combine(start_date_range, start_time_range)
 end_datetime = datetime.combine(end_date_range, end_time_range)
 
-if "last_fetched_range" not in st.session_state:
-    st.session_state["last_fetched_range"] = (None, None)
-
 last_start, last_end = st.session_state["last_fetched_range"]
 
-if (start_datetime != last_start) or (end_datetime != last_end):
+if ((start_datetime != last_start) or (end_datetime != last_end)) and (
+    not enable_realtime_data or (enable_realtime_data and combine_live)
+):
     with st.spinner("Fetching data from Typeform..."):
         fetch_typeform_responses(start_datetime, end_datetime)
-        st.cache_data.clear()
-        df = get_data()
+        df = refresh_data()
     st.session_state["last_fetched_range"] = (start_datetime, end_datetime)
 
 df["submitted_at"] = pd.to_datetime(df["submitted_at"])
@@ -117,8 +159,6 @@ if role_filter == EMPTY_ROLE_OPTION:
 elif role_filter != ALL_ROLES_OPTION:
     df = df[df["role"] == role_filter]
 
-# Apply datetime range
-df = df[(df["submitted_at"] >= start_datetime) & (df["submitted_at"] <= end_datetime)]
 st.info(str(df.shape[0]) + " responses from Typeform for the selected date/time range.")
 
 
@@ -393,9 +433,6 @@ else:
     comp_end_datetime = datetime.combine(comp_end_date, comp_end_time)
 
     # Filter for comparison cohort (using the same role filter as current cohort)
-    df_comp = get_data_comparison()
-    if "last_fetched_range_comp" not in st.session_state:
-        st.session_state["last_fetched_range_comp"] = (None, None)
     comp_last_start, comp_last_end = st.session_state["last_fetched_range_comp"]
 
     if (comp_start_datetime != comp_last_start) or (comp_end_datetime != comp_last_end):
@@ -403,8 +440,7 @@ else:
             fetch_typeform_responses(
                 comp_start_datetime, comp_end_datetime, is_comparison=True
             )
-            st.cache_data.clear()
-            df_comp = get_data_comparison()
+            df_comp = refresh_data_comparison()
         st.session_state["last_fetched_range_comp"] = (
             comp_start_datetime,
             comp_end_datetime,

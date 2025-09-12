@@ -1,3 +1,4 @@
+import csv
 import os
 from datetime import datetime
 
@@ -5,7 +6,7 @@ import pandas as pd
 import requests
 from dotenv import load_dotenv
 
-from interfaces.form_response import FormResponse
+from interfaces.form_response import CSV_HEADERS, FormResponse
 
 load_dotenv()
 
@@ -67,6 +68,16 @@ def fetch_typeform_responses(start_datetime, end_datetime, is_comparison=False):
     csv_file_path = COMPARISON_CSV_FILE if is_comparison else CSV_FILE
     df.to_csv(csv_file_path, index=False)
     print(f"Saved {len(df)} responses to {csv_file_path}")
+
+
+def clear_csv():
+    """Clear the CSV file."""
+    with open("form_responses.csv", "w", newline="") as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=CSV_HEADERS)
+        writer.writeheader()
+    with open("comparison_form_responses.csv", "w", newline="") as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=CSV_HEADERS)
+        writer.writeheader()
 
 
 # Example usage:
