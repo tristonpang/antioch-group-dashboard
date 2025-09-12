@@ -55,6 +55,8 @@ if "last_fetched_range_comp" not in st.session_state:
     st.session_state["last_fetched_range_comp"] = (None, None)
 if "last_realtime_state" not in st.session_state:
     st.session_state["last_realtime_state"] = False
+if "last_combine_live_state" not in st.session_state:
+    st.session_state["last_combine_live_state"] = False
 refresh_count = (
     st_autorefresh(interval=2000, key="datarefresh")
     if st.session_state["last_realtime_state"]
@@ -116,6 +118,12 @@ with combine_live_with_historical_col:
         disabled=all_filters_disabled or not enable_realtime_data,
     )
 
+if combine_live != st.session_state["last_combine_live_state"]:
+    st.session_state["last_combine_live_state"] = combine_live
+    clear_csv()
+    df = refresh_data()
+    df_comp = refresh_data_comparison()
+
 end_range_disabled = all_filters_disabled or enable_realtime_data
 start_range_disabled = all_filters_disabled or (
     enable_realtime_data and not combine_live
@@ -142,7 +150,10 @@ if ((start_datetime != last_start) or (end_datetime != last_end)) and (
     not enable_realtime_data or (enable_realtime_data and combine_live)
 ):
     with st.spinner("Fetching data from Typeform..."):
-        fetch_typeform_responses(start_datetime, end_datetime)
+        fetch_typeform_responses(
+            start_datetime,
+            datetime.now() if enable_realtime_data and combine_live else end_datetime,
+        )
         df = refresh_data()
     st.session_state["last_fetched_range"] = (start_datetime, end_datetime)
 
