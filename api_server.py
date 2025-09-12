@@ -30,8 +30,8 @@ class EmbeddedApiHandler(RequestHandler):
         # This handler will not perform XSRF checks
         pass
 
-    # def get(self):
-    #     self.write({"message": "Welcome to the CMRA Group Dashboard API"})
+    def get(self):
+        self.write({"message": "Welcome to the CMRA Group Dashboard API"})
 
     def post(self):
         # Check if real-time is enabled

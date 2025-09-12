@@ -29,7 +29,7 @@ st.set_page_config(
 
 
 # Embed webhook API endpoint into the dashboard
-setup_api_handler("/", EmbeddedApiHandler)
+setup_api_handler("/api/4g53n9xd5o", EmbeddedApiHandler)
 
 
 # read csv from a URL
