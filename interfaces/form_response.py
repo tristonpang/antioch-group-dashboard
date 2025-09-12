@@ -11,6 +11,7 @@ FieldIds = Enum(
 )
 
 CSV_HEADERS = [
+    "submitted_at",
     "respondent",
     "email",
     "role",

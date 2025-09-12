@@ -5,8 +5,8 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from constants import ALL_ROLES_OPTION, CSV_FILE, EMPTY_ROLE_OPTION
-from interfaces.form_response import DISPLAY_NAMES, DOMAIN_HEADERS
-from typeform_api import fetch_typeform_responses
+from interfaces.form_response import CSV_HEADERS, DISPLAY_NAMES, DOMAIN_HEADERS
+from typeform_api import COMPARISON_CSV_FILE, fetch_typeform_responses
 
 # dataset_url = "https://raw.githubusercontent.com/Lexie88rus/bank-marketing-analysis/master/bank.csv"
 
@@ -20,8 +20,20 @@ st.set_page_config(
 # read csv from a URL
 @st.cache_data
 def get_data() -> pd.DataFrame:
-    # return pd.read_csv(dataset_url)
-    return pd.read_csv(CSV_FILE)
+    try:
+        result = pd.read_csv(CSV_FILE)
+        print("returning result")
+        return result
+    except pd.errors.EmptyDataError:
+        return pd.DataFrame(columns=CSV_HEADERS)
+
+
+@st.cache_data
+def get_data_comparison() -> pd.DataFrame:
+    try:
+        return pd.read_csv(COMPARISON_CSV_FILE)
+    except pd.errors.EmptyDataError:
+        return pd.DataFrame(columns=CSV_HEADERS)
 
 
 # All collated data
@@ -88,9 +100,9 @@ last_start, last_end = st.session_state["last_fetched_range"]
 if (start_datetime != last_start) or (end_datetime != last_end):
     with st.spinner("Fetching data from Typeform..."):
         fetch_typeform_responses(start_datetime, end_datetime)
+        st.cache_data.clear()
         df = get_data()
     st.session_state["last_fetched_range"] = (start_datetime, end_datetime)
-
 
 df["submitted_at"] = pd.to_datetime(df["submitted_at"])
 # Convert timezone-aware datetime to timezone-naive for comparison
@@ -381,7 +393,23 @@ else:
     comp_end_datetime = datetime.combine(comp_end_date, comp_end_time)
 
     # Filter for comparison cohort (using the same role filter as current cohort)
-    df_comp = get_data()
+    df_comp = get_data_comparison()
+    if "last_fetched_range_comp" not in st.session_state:
+        st.session_state["last_fetched_range_comp"] = (None, None)
+    comp_last_start, comp_last_end = st.session_state["last_fetched_range_comp"]
+
+    if (comp_start_datetime != comp_last_start) or (comp_end_datetime != comp_last_end):
+        with st.spinner("Fetching data from Typeform..."):
+            fetch_typeform_responses(
+                comp_start_datetime, comp_end_datetime, is_comparison=True
+            )
+            st.cache_data.clear()
+            df_comp = get_data_comparison()
+        st.session_state["last_fetched_range_comp"] = (
+            comp_start_datetime,
+            comp_end_datetime,
+        )
+
     df_comp["submitted_at"] = pd.to_datetime(df_comp["submitted_at"])
     df_comp["submitted_at"] = df_comp["submitted_at"].dt.tz_localize(None)
 
@@ -394,6 +422,11 @@ else:
         (df_comp["submitted_at"] >= comp_start_datetime)
         & (df_comp["submitted_at"] <= comp_end_datetime)
     ]
+    st.info(
+        "Comparison cohort has "
+        + str(df_comp.shape[0])
+        + " responses from Typeform for the selected date/time range."
+    )
 
     # Calculate average scores for each subdomain in both cohorts
     subdomain_compare_data = []
@@ -401,12 +434,18 @@ else:
         for subdomain in subdomains:
             current_avg = df[subdomain].mean() if not df.empty else 0
             comp_avg = df_comp[subdomain].mean() if not df_comp.empty else 0
+            # Calculate percentage difference, handle division by zero
+            if comp_avg == 0:
+                pct_diff = 0 if current_avg == 0 else 100
+            else:
+                pct_diff = ((current_avg - comp_avg) / comp_avg) * 100
             subdomain_compare_data.append(
                 {
                     "domain": DISPLAY_NAMES[domain],
                     "subdomain": DISPLAY_NAMES[subdomain],
                     "Current Cohort": round(current_avg, 2),
                     "Previous Cohort": round(comp_avg, 2),
+                    "Difference": round(pct_diff, 1),
                 }
             )
 
@@ -429,6 +468,9 @@ else:
             y=subdomain_compare_df["Current Cohort"],
             name="Current",
             marker_color="rgb(32, 201, 151)",
+            text=[f"{pct:+.1f}%" for pct in subdomain_compare_df["Difference"]],
+            textposition="outside",
+            textfont=dict(size=22),
         )
     )
 
@@ -437,7 +479,7 @@ else:
         title="Subdomain Average Scores: Current vs. Previous Cohort",
         xaxis_title="Subdomain",
         yaxis_title="Average Score",
-        height=500,
+        height=700,
         xaxis={"tickangle": 45, "tickfont": {"size": 18}, "title_font": {"size": 20}},
         yaxis={"tickfont": {"size": 18}, "title_font": {"size": 20}},
         hoverlabel=dict(font_size=18),

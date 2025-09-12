@@ -13,9 +13,10 @@ TYPEFORM_API_TOKEN = os.getenv("TYPEFORM_API_TOKEN")
 FORM_ID = os.getenv("TYPEFORM_FORM_ID")
 
 CSV_FILE = "form_responses.csv"
+COMPARISON_CSV_FILE = "comparison_form_responses.csv"
 
 
-def fetch_typeform_responses(start_datetime, end_datetime):
+def fetch_typeform_responses(start_datetime, end_datetime, is_comparison=False):
     """
     Fetch responses from Typeform API between start_datetime and end_datetime,
     and overwrite the form_responses.csv file.
@@ -63,8 +64,9 @@ def fetch_typeform_responses(start_datetime, end_datetime):
         rows.append(row)
 
     df = pd.DataFrame(rows)
-    df.to_csv(CSV_FILE, index=False)
-    print(f"Saved {len(df)} responses to {CSV_FILE}")
+    csv_file_path = COMPARISON_CSV_FILE if is_comparison else CSV_FILE
+    df.to_csv(csv_file_path, index=False)
+    print(f"Saved {len(df)} responses to {csv_file_path}")
 
 
 # Example usage:
