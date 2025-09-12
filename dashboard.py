@@ -530,6 +530,7 @@ else:
         xaxis={"tickangle": 45, "tickfont": {"size": 18}, "title_font": {"size": 20}},
         yaxis={"tickfont": {"size": 18}, "title_font": {"size": 20}},
         hoverlabel=dict(font_size=18),
+        legend=dict(font=dict(size=22)),
     )
 
     st.plotly_chart(compare_bar, use_container_width=True)
