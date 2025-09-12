@@ -1,3 +1,6 @@
+import csv
+import gc
+import json
 import os
 from datetime import datetime
 
@@ -5,9 +8,16 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 from streamlit_autorefresh import st_autorefresh
+from tornado.routing import PathMatches, Rule
+from tornado.web import Application, RequestHandler
 
 from constants import ALL_ROLES_OPTION, CSV_FILE, EMPTY_ROLE_OPTION
-from interfaces.form_response import CSV_HEADERS, DISPLAY_NAMES, DOMAIN_HEADERS
+from interfaces.form_response import (
+    CSV_HEADERS,
+    DISPLAY_NAMES,
+    DOMAIN_HEADERS,
+    FormResponse,
+)
 from typeform_api import COMPARISON_CSV_FILE, clear_csv, fetch_typeform_responses
 
 # dataset_url = "https://raw.githubusercontent.com/Lexie88rus/bank-marketing-analysis/master/bank.csv"
@@ -18,6 +28,60 @@ st.set_page_config(
     page_icon="✅",
     layout="wide",
 )
+
+
+# === EMBEDDED API SERVER ===
+@st.cache_resource()
+def setup_api_handler(uri, handler):
+    print("Setup Tornado. Should be called only once")
+
+    # Get instance of Tornado
+    tornado_app = next(
+        o for o in gc.get_referrers(Application) if o.__class__ is Application
+    )
+
+    # Setup custom handler
+    tornado_app.wildcard_router.rules.insert(0, Rule(PathMatches(uri), handler))
+
+
+# === Usage ======
+class EmbeddedApiHandler(RequestHandler):
+    def check_xsrf_cookie(self):
+        # This handler will not perform XSRF checks
+        pass
+
+    def get(self):
+        self.write({"message": "Welcome to the CMRA Group Dashboard API"})
+
+    def post(self):
+        # Check if real-time is enabled
+        if not os.path.exists(REALTIME_FLAG_FILE):
+            self.write({"status": "ignored", "reason": "real-time data not enabled"})
+            return
+
+        # Get raw bytes
+        raw_body = self.request.body
+
+        # Decode to string (if needed)
+        body_str = raw_body.decode("utf-8")
+
+        data = json.loads(body_str)
+        print("Webhook received:", data["event_id"])
+
+        # Convert into domain object FormResponse
+        form_response = FormResponse(data["form_response"])
+
+        # Flatten and write to csv file
+        csv_data = form_response.parse_to_row()
+        with open(CSV_FILE, "a", newline="") as csvfile:
+            writer = csv.DictWriter(csvfile, fieldnames=csv_data.keys())
+            writer.writerow(csv_data)
+
+        self.write({"status": "success"})
+
+
+# This setup will be run only once
+setup_api_handler("/api/4g53n9xd5o", EmbeddedApiHandler)
 
 
 # read csv from a URL
