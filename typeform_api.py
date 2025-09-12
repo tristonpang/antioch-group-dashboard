@@ -6,15 +6,13 @@ import pandas as pd
 import requests
 from dotenv import load_dotenv
 
+from constants import COMPARISON_CSV_FILE, CSV_FILE
 from interfaces.form_response import CSV_HEADERS, FormResponse
 
 load_dotenv()
 
 TYPEFORM_API_TOKEN = os.getenv("TYPEFORM_API_TOKEN")
 FORM_ID = os.getenv("TYPEFORM_FORM_ID")
-
-CSV_FILE = "form_responses.csv"
-COMPARISON_CSV_FILE = "comparison_form_responses.csv"
 
 
 def fetch_typeform_responses(start_datetime, end_datetime, is_comparison=False):
