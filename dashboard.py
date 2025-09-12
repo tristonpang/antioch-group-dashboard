@@ -70,7 +70,7 @@ if "last_realtime_state" not in st.session_state:
 if "last_combine_live_state" not in st.session_state:
     st.session_state["last_combine_live_state"] = False
 refresh_count = (
-    st_autorefresh(interval=2000, key="datarefresh")
+    st_autorefresh(interval=5000, key="datarefresh")
     if st.session_state["last_realtime_state"]
     else None
 )
