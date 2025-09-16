@@ -397,11 +397,7 @@ st.markdown("### Summary Insights")
 if df.empty:
     st.warning("No data available for the selected filters and date range.")
 else:
-    # Find strongest domain
-    strongest_domain_idx = domain_summary_stats["avg_score"].idxmax()
-    strongest_domain = DISPLAY_NAMES[strongest_domain_idx]
-
-    # Find lowest 4 subdomains across all domains
+    # Find all subdomain average scores
     all_subdomain_scores = []
     for domain, subdomains in subdomain_mapping.items():
         for subdomain in subdomains:
@@ -413,23 +409,33 @@ else:
                 }
             )
 
-    # Sort by score and get the lowest 4
     subdomain_scores_df = pd.DataFrame(all_subdomain_scores)
-    lowest_subdomains = subdomain_scores_df.nsmallest(4, "avg_score")[
+
+    # Sort by score and get the top 3 and lowest 3
+    top_subdomains = subdomain_scores_df.nlargest(3, "avg_score")["subdomain"].tolist()
+    lowest_subdomains = subdomain_scores_df.nsmallest(3, "avg_score")[
         "subdomain"
     ].tolist()
 
-    # Display strongest domain in green box
-    st.markdown("**This cohort's strongest domain is:**")
-    st.success(f"**{strongest_domain}**")
+    # Display top 3 subdomains in green boxes with average scores
+    st.markdown("**This cohort's strongest subdomains are:**")
+    top_cols = st.columns(3)
+    for i, subdomain in enumerate(top_subdomains):
+        avg = subdomain_scores_df[subdomain_scores_df["subdomain"] == subdomain][
+            "avg_score"
+        ].values[0]
+        with top_cols[i]:
+            st.success(f"**{subdomain}**\n\nAvg Score: **{avg:.2f}%**")
 
-    # Display lowest subdomains in yellow boxes
+    # Display lowest 3 subdomains in yellow boxes with average scores
     st.markdown("**Areas for greatest improvement:**")
-    improvement_cols = st.columns(4)
-
+    improvement_cols = st.columns(3)
     for i, subdomain in enumerate(lowest_subdomains):
+        avg = subdomain_scores_df[subdomain_scores_df["subdomain"] == subdomain][
+            "avg_score"
+        ].values[0]
         with improvement_cols[i]:
-            st.warning(f"**{subdomain}**")
+            st.warning(f"**{subdomain}**\n\nAvg Score: **{avg:.2f}%**")
 
     # == COMPARISON COHORT SECTION ==
     st.markdown("#### Comparison Cohort Selection")
