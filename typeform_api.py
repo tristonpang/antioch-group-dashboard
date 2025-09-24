@@ -28,7 +28,6 @@ def fetch_typeform_responses(start_datetime, end_datetime, is_comparison=False):
         start_datetime.strftime("%Y-%m-%dT%H:%M:%SZ") if start_datetime else None
     )
     until_param = end_datetime.strftime("%Y-%m-%dT%H:%M:%SZ") if end_datetime else None
-    print(since_param, until_param)
 
     params = {
         "response_type": "completed",
