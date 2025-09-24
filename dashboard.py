@@ -1,5 +1,5 @@
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pandas as pd
 import plotly.graph_objects as go
@@ -13,6 +13,7 @@ from constants import (
     CSV_FILE,
     EMPTY_ROLE_OPTION,
     REALTIME_FLAG_FILE,
+    UTC_PLUS_8,
 )
 from interfaces.form_response import (
     CSV_HEADERS,
@@ -153,8 +154,16 @@ with end_time_col:
     end_time_range = st.time_input("End Time", disabled=end_range_disabled)
 
 # Combine date and time into datetime objects
-start_datetime = datetime.combine(start_date_range, start_time_range)
-end_datetime = datetime.combine(end_date_range, end_time_range)
+start_datetime = (
+    datetime.combine(start_date_range, start_time_range)
+    .replace(tzinfo=UTC_PLUS_8)
+    .astimezone(timezone.utc)
+)
+end_datetime = (
+    datetime.combine(end_date_range, end_time_range)
+    .replace(tzinfo=UTC_PLUS_8)
+    .astimezone(timezone.utc)
+)
 
 last_start, last_end = st.session_state["last_fetched_range"]
 
@@ -458,8 +467,16 @@ else:
         comp_end_time = st.time_input("Previous Cohort End Time", key="comp_end_time")
 
     # Combine comparison date and time into datetime objects
-    comp_start_datetime = datetime.combine(comp_start_date, comp_start_time)
-    comp_end_datetime = datetime.combine(comp_end_date, comp_end_time)
+    comp_start_datetime = (
+        datetime.combine(comp_start_date, comp_start_time)
+        .replace(tzinfo=UTC_PLUS_8)
+        .astimezone(timezone.utc)
+    )
+    comp_end_datetime = (
+        datetime.combine(comp_end_date, comp_end_time)
+        .replace(tzinfo=UTC_PLUS_8)
+        .astimezone(timezone.utc)
+    )
 
     # Filter for comparison cohort (using the same role filter as current cohort)
     comp_last_start, comp_last_end = st.session_state["last_fetched_range_comp"]
@@ -483,10 +500,6 @@ else:
     elif role_filter != ALL_ROLES_OPTION:
         df_comp = df_comp[df_comp["role"] == role_filter]
 
-    df_comp = df_comp[
-        (df_comp["submitted_at"] >= comp_start_datetime)
-        & (df_comp["submitted_at"] <= comp_end_datetime)
-    ]
     st.info(
         "Comparison cohort has "
         + str(df_comp.shape[0])
