@@ -22,11 +22,19 @@ def fetch_typeform_responses(start_datetime, end_datetime, is_comparison=False):
     """
     url = f"https://api.typeform.com/forms/{FORM_ID}/responses"
     headers = {"Authorization": f"Bearer {TYPEFORM_API_TOKEN}"}
+
+    # Format datetime as ISO string without encoding issues
+    since_param = (
+        start_datetime.strftime("%Y-%m-%dT%H:%M:%SZ") if start_datetime else None
+    )
+    until_param = end_datetime.strftime("%Y-%m-%dT%H:%M:%SZ") if end_datetime else None
+    print(since_param, until_param)
+
     params = {
         "response_type": "completed",
         "page_size": 1000,
-        "since": start_datetime.isoformat() + "Z" if start_datetime else None,
-        "until": end_datetime.isoformat() + "Z" if end_datetime else None,
+        "since": since_param,
+        "until": until_param,
     }
 
     all_responses = []
